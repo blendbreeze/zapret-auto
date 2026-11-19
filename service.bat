@@ -89,12 +89,14 @@ echo.
 echo   :: TOOLS
 echo      11. Run Diagnostics
 echo      12. Run Tests
+echo      13. Auto-Rotation + Site Fix
+echo      14. Important Sites
 echo.
 echo   ----------------------------------------
 echo      0. Exit
 echo.
 
-set /p menu_choice=   Select option (0-12): 
+set /p menu_choice=   Select option (0-14): 
 
 if "%menu_choice%"=="1" goto service_install
 if "%menu_choice%"=="2" goto service_remove
@@ -108,6 +110,8 @@ if "%menu_choice%"=="9" goto hosts_update
 if "%menu_choice%"=="10" goto service_check_updates
 if "%menu_choice%"=="11" goto service_diagnostics
 if "%menu_choice%"=="12" goto run_tests
+if "%menu_choice%"=="13" goto service_rotation
+if "%menu_choice%"=="14" goto service_important
 if "%menu_choice%"=="0" exit /b
 goto menu
 
@@ -1227,6 +1231,66 @@ if %errorLevel% neq 0 (
 echo Starting configuration tests in PowerShell window...
 echo.
 start "" powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0utils\test zapret.ps1"
+pause
+goto menu
+
+
+:: AUTO-ROTATION ========================
+:service_rotation
+chcp 437 >nul
+cls
+
+:: Require PowerShell 3.0+
+powershell -NoProfile -Command "if ($PSVersionTable -and $PSVersionTable.PSVersion -and $PSVersionTable.PSVersion.Major -ge 3) { exit 0 } else { exit 1 }" >nul 2>&1
+if %errorLevel% neq 0 (
+    echo PowerShell 3.0 or newer is required.
+    echo Please upgrade PowerShell and rerun this script.
+    echo.
+    pause
+    goto menu
+)
+
+:: Auto-rotation manages winws directly and conflicts with the installed service
+set SRVCNAME=zapret
+sc query "%SRVCNAME%" >nul 2>&1
+if !errorlevel!==0 (
+    echo Windows service "%SRVCNAME%" is installed.
+    echo Auto-rotation must manage winws directly.
+    set /p rotation_confirm=Remove the service and continue? Y/N:
+    if /I "!rotation_confirm!"=="Y" (
+        net stop %SRVCNAME% >nul 2>&1
+        sc delete %SRVCNAME% >nul 2>&1
+        echo Service removed.
+    ) else (
+        goto menu
+    )
+)
+
+echo Starting auto-rotation monitor in PowerShell window...
+echo.
+start "zapret: auto-rotation" powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0utils\monitor zapret.ps1"
+pause
+goto menu
+
+
+:: IMPORTANT SITES ======================
+:service_important
+chcp 437 >nul
+cls
+
+:: Require PowerShell 3.0+
+powershell -NoProfile -Command "if ($PSVersionTable -and $PSVersionTable.PSVersion -and $PSVersionTable.PSVersion.Major -ge 3) { exit 0 } else { exit 1 }" >nul 2>&1
+if %errorLevel% neq 0 (
+    echo PowerShell 3.0 or newer is required.
+    echo Please upgrade PowerShell and rerun this script.
+    echo.
+    pause
+    goto menu
+)
+
+echo Starting important sites checker in PowerShell window...
+echo.
+start "" powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0utils\check important.ps1"
 pause
 goto menu
 

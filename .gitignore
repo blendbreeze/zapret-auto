@@ -1,8 +1,10 @@
 /utils/test results
 /utils/game_filter.enabled
+/utils/monitor state.json
 /lists/ipset-exclude-user.txt
 /lists/list-general-user.txt
 /lists/list-exclude-user.txt
+/lists/site-overrides.txt
 
 .vscode/
 /build/

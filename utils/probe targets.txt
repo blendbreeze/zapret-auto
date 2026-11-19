@@ -1,0 +1,4 @@
+YouTube = "https://www.youtube.com/generate_204"
+YouTube = "https://redirector.googlevideo.com/report_mapping?di=no"
+Discord = "https://gateway.discord.gg"
+Cloudflare = "https://www.cloudflare.com/cdn-cgi/trace"

@@ -5,6 +5,8 @@
 /lists/list-general-user.txt
 /lists/list-exclude-user.txt
 /lists/site-overrides.txt
+/lists/adguard-https-exclusions.txt
+/lists/adguard-dns-allowlist.txt
 /general (CUSTOM).bat
 
 .vscode/

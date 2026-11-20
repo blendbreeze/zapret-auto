@@ -864,6 +864,10 @@ function Invoke-SiteFixCycle {
     $rec.tried = @()   # fresh episode after the backoff
     Save-State
     Log-Line ("SITEFIX {0}: no working strategy found - backing off {1}s" -f $domain, $siteBackoff) Yellow
+    if (Get-Process -Name "AdguardSvc" -ErrorAction SilentlyContinue) {
+        Log-Line ("SITEFIX {0}: AdGuard is running - its HTTPS filtering may be breaking this site" -f $domain) Yellow
+        Log-Line "         add the domain to AdGuard exclusions (menu 15 exports the list) or disable HTTPS filtering" Yellow
+    }
     Touch-SiteChecksAfterRestart -settleSeconds $siteSettle
     return $false
 }
@@ -931,6 +935,10 @@ Write-Host " Presets: $($presetFiles.Count) | Probe targets: $($probeTargets.Cou
 Write-Host (" Site fix: {0} (domains: {1}, learned overrides: {2}, quiet: {3}s, broken recheck: {4}s)" -f $(if ($sitefixEnabled) { "ENABLED" } else { "off" }), $script:importantDomains.Count, $overrideCount, $siteOkQuiet, $siteBrokenInterval) -ForegroundColor Gray
 if ($excludedImportant.Count -gt 0) {
     Write-Host (" [WARN] Important domains excluded by exclude lists (skipped): {0}" -f ($excludedImportant -join ", ")) -ForegroundColor Yellow
+}
+if ($sitefixEnabled -and (Get-Process -Name "AdguardSvc" -ErrorAction SilentlyContinue)) {
+    Write-Host " [INFO] AdGuard detected: its HTTPS filtering can break bypassed sites." -ForegroundColor DarkGray
+    Write-Host "        Menu 15 exports the exclusion list; see the README (AdGuard section)." -ForegroundColor DarkGray
 }
 Write-Host " State: $(Join-Path $utilsDir 'monitor state.json')" -ForegroundColor Gray
 Write-Host " Ipset filter: $(Get-IpsetStatus)" -ForegroundColor Gray

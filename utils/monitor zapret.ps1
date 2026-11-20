@@ -25,6 +25,9 @@
 #   SITE_TIMEOUT               curl timeout per site GET, s         (default 12)
 #   SITE_CONNECT_TIMEOUT       curl connect timeout, s              (default 5)
 #   SITE_GET_GAP               pause between the two GETs, s        (default 2)
+#   MONITOR_BASE_SELECT        ask|auto - base preset choice at startup:
+#                              ask  = interactive list (default)
+#                              auto = last choice / best ranked, no prompt
 #
 # Exit with Ctrl+C: state is saved; if winws ran before the monitor started,
 # that original instance is restored, otherwise the last healthy config keeps
@@ -528,6 +531,18 @@ if (Get-Service -Name "zapret" -ErrorAction SilentlyContinue) {
     $hasErrors = $true
 }
 
+# guard: two monitor instances would fight over winws restarts
+$otherMonitors = @()
+try {
+    $otherMonitors = @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
+        Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -match 'monitor\s+zapret\.ps1' })
+} catch { }
+if ($otherMonitors.Count -gt 0) {
+    Write-Host "[ERROR] Another monitor instance is already running (PID $($otherMonitors[0].ProcessId))" -ForegroundColor Red
+    Write-Host "         Close its window first - two monitors would fight over winws restarts" -ForegroundColor Yellow
+    $hasErrors = $true
+}
+
 if (-not $presetFiles -or $presetFiles.Count -eq 0) {
     Write-Host "[ERROR] No strategy .bat files found in $rootDir" -ForegroundColor Red
     $hasErrors = $true
@@ -938,23 +953,30 @@ try {
         }
         if (-not $defaultBase -and $ranked.Count -gt 0) { $defaultBase = $ranked[0].Name }
 
-        Write-Host ""
-        Write-Host "Select the BASE preset for the combined config (per-site overrides ride on top of it):" -ForegroundColor Cyan
-        for ($i = 0; $i -lt $ranked.Count; $i++) {
-            $marker = ""
-            if ($ranked[$i].Name -eq $defaultBase) { $marker = "   <- last choice / best ranked (Enter)" }
-            Write-Host ("  [{0}] {1}{2}" -f ($i + 1), $ranked[$i].Name, $marker) -ForegroundColor Gray
-        }
         $chosen = $null
-        while ($true) {
-            $choice = Read-Host ("Enter number (Enter = {0}), or 'N' for watch-only (no per-site fixing)" -f $defaultBase)
-            if ($choice -match '^[nN]') { break }
-            if (-not $choice.Trim()) { $chosen = $defaultBase; break }
-            if ($choice -match '^\d+$') {
-                $n = [int]$choice
-                if ($n -ge 1 -and $n -le $ranked.Count) { $chosen = $ranked[$n - 1].Name; break }
+        if ("$env:MONITOR_BASE_SELECT" -ieq 'auto') {
+            if ($defaultBase) {
+                $chosen = $defaultBase
+                Write-Host "[INFO] Base preset auto-selected: $chosen (last choice / best ranked)" -ForegroundColor Cyan
             }
-            Write-Host "Invalid input. Enter a number from the list, 'N', or press Enter." -ForegroundColor Yellow
+        } else {
+            Write-Host ""
+            Write-Host "Select the BASE preset for the combined config (per-site overrides ride on top of it):" -ForegroundColor Cyan
+            for ($i = 0; $i -lt $ranked.Count; $i++) {
+                $marker = ""
+                if ($ranked[$i].Name -eq $defaultBase) { $marker = "   <- last choice / best ranked (Enter)" }
+                Write-Host ("  [{0}] {1}{2}" -f ($i + 1), $ranked[$i].Name, $marker) -ForegroundColor Gray
+            }
+            while ($true) {
+                $choice = Read-Host ("Enter number (Enter = {0}), or 'N' for watch-only (no per-site fixing)" -f $defaultBase)
+                if ($choice -match '^[nN]') { break }
+                if (-not $choice.Trim()) { $chosen = $defaultBase; break }
+                if ($choice -match '^\d+$') {
+                    $n = [int]$choice
+                    if ($n -ge 1 -and $n -le $ranked.Count) { $chosen = $ranked[$n - 1].Name; break }
+                }
+                Write-Host "Invalid input. Enter a number from the list, 'N', or press Enter." -ForegroundColor Yellow
+            }
         }
         if (-not $chosen) {
             $sitefixEnabled = $false

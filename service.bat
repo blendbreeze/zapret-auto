@@ -91,12 +91,13 @@ echo      11. Run Diagnostics
 echo      12. Run Tests
 echo      13. Auto-Rotation + Site Fix
 echo      14. Important Sites
+echo      15. AdGuard VPN test
 echo.
 echo   ----------------------------------------
 echo      0. Exit
 echo.
 
-set /p menu_choice=   Select option (0-14): 
+set /p menu_choice=   Select option (0-15): 
 
 if "%menu_choice%"=="1" goto service_install
 if "%menu_choice%"=="2" goto service_remove
@@ -112,6 +113,7 @@ if "%menu_choice%"=="11" goto service_diagnostics
 if "%menu_choice%"=="12" goto run_tests
 if "%menu_choice%"=="13" goto service_rotation
 if "%menu_choice%"=="14" goto service_important
+if "%menu_choice%"=="15" goto service_adguardvpn
 if "%menu_choice%"=="0" exit /b
 goto menu
 
@@ -1301,6 +1303,27 @@ if %errorLevel% neq 0 (
 echo Starting important sites checker in PowerShell window...
 echo.
 start "" powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0utils\check important.ps1"
+pause
+goto menu
+
+
+:: ADGUARD VPN TEST =====================
+:service_adguardvpn
+chcp 437 >nul
+cls
+
+:: Require PowerShell 3.0+
+powershell -NoProfile -Command "if ($PSVersionTable -and $PSVersionTable.PSVersion -and $PSVersionTable.PSVersion.Major -ge 3) { exit 0 } else { exit 1 }" >nul 2>&1
+if %errorLevel% neq 0 (
+    echo PowerShell 3.0 or newer is required.
+    echo Please upgrade PowerShell and rerun this script.
+    echo.
+    pause
+    goto menu
+)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0utils\adguard vpn test.ps1"
+echo:
 pause
 goto menu
 

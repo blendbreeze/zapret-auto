@@ -473,6 +473,16 @@ if !errorlevel!==0 (
 ) else (
     call :PrintGreen "Adguard check passed"
 )
+
+:: AdGuard VPN (AdGuardVpnSvc.exe)
+tasklist /FI "IMAGENAME eq AdGuardVpnSvc.exe" | find /I "AdGuardVpnSvc.exe" > nul
+if !errorlevel!==0 (
+    call :PrintYellow "[?] AdGuard VPN found. Its Kill Switch drops Zapret-processed packets,"
+    call :PrintYellow "      which can time out the VPN tunnel while Zapret is running."
+    call :PrintYellow "      Turn off Kill Switch in AdGuard VPN settings to run both together."
+) else (
+    call :PrintGreen "AdGuard VPN check passed"
+)
 echo:
 
 :: Killer

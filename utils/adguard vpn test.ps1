@@ -150,6 +150,34 @@ if ($ksState -eq 'True') {
     if ($override -notmatch '^[yY]') { Wait-AnyKey; exit 1 }
 }
 
+# VPN carrier exclusion coverage (see README: --wf-raw-part)
+$listsDir = Join-Path $rootDir "lists"
+$fragFile = Join-Path $listsDir "windivert-part-exclude.txt"
+$endpoint = $null
+$agentNewest = @($logFiles | Where-Object { $_.FullName -match '\\agent\\' }) | Select-Object -First 1
+if (-not $agentNewest) { $agentNewest = $logFiles | Select-Object -First 1 }
+if ($agentNewest) {
+    try {
+        $m = Select-String -Path $agentNewest.FullName -Pattern 'Using endpoint:.*address=([0-9.]+):\d+' -ErrorAction SilentlyContinue | Select-Object -Last 1
+        if ($m) { $endpoint = $m.Matches[0].Groups[1].Value }
+    } catch { }
+}
+$carrierExcluded = $false
+if ($endpoint -and (Test-Path $fragFile)) {
+    try {
+        $frag = [IO.File]::ReadAllText($fragFile)
+        if ($frag -match ([regex]::Escape("ip.DstAddr != $endpoint"))) { $carrierExcluded = $true }
+    } catch { }
+}
+if ($endpoint) {
+    if ($carrierExcluded) {
+        Write-Host ("[OK] VPN carrier ({0}) excluded from Zapret capture at kernel level" -f $endpoint) -ForegroundColor Green
+    } else {
+        Write-Host ("[WARN] VPN carrier ({0}) is NOT excluded from Zapret capture." -f $endpoint) -ForegroundColor Yellow
+        Write-Host "       Run the monitor (menu 13) once - it tracks the endpoint and writes the exclusion." -ForegroundColor Yellow
+    }
+}
+
 if (-not (Get-Process -Name "winws" -ErrorAction SilentlyContinue)) {
     Write-Host "[WARNING] Zapret (winws.exe) is NOT running - start it (menu 13 or a preset)." -ForegroundColor Yellow
     Write-Host "          The test is only meaningful with Zapret running." -ForegroundColor Yellow

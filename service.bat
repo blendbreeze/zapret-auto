@@ -132,6 +132,10 @@ if not exist "%LISTS_PATH%list-general-user.txt" (
 if not exist "%LISTS_PATH%list-exclude-user.txt" (
     echo domain.example.abc>"%LISTS_PATH%list-exclude-user.txt"
 )
+if not exist "%LISTS_PATH%list-browser-user.txt" (
+    echo # Browser-learned domains ^(added by FirefoxZapret^)>"%LISTS_PATH%list-browser-user.txt"
+    echo domain.example.abc>>"%LISTS_PATH%list-browser-user.txt"
+)
 
 exit /b
 

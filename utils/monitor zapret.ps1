@@ -94,6 +94,7 @@ $vpnMaxEndpoints = 8
 $customPresetName = "general (CUSTOM).bat"
 $overridesFile = Join-Path $listsDir "site-overrides.txt"
 $vpnExcludeFile = Join-Path $listsDir "windivert-part-exclude.txt"
+$browserListFile = Join-Path $listsDir "list-browser-user.txt"
 $script:utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 # ---- Shared helpers (mirrors "test zapret.ps1") ----------------------------
@@ -1228,6 +1229,11 @@ try {
 
     Log-Line "Monitor started. Press Ctrl+C to stop." Green
 
+    # FirefoxZapret browser list: watch mtime so learned domains get applied
+    $browserListFile = Join-Path $listsDir "list-browser-user.txt"
+    $script:browserListMtime = $null
+    if (Test-Path $browserListFile) { $script:browserListMtime = (Get-Item $browserListFile).LastWriteTimeUtc }
+
     while ($true) {
       try {
         # keep a preset alive
@@ -1248,6 +1254,25 @@ try {
             } else {
                 [void](Invoke-Rotation -reason "no active preset")
             }
+        }
+
+        # FirefoxZapret browser list: apply learned domains (restart needed - lists
+        # are read once at winws start). If the native host's taskkill already
+        # killed winws, the keepalive above handles the restart instead.
+        if ($script:currentPresetName -and (Test-Path $browserListFile)) {
+            $mt = (Get-Item $browserListFile -ErrorAction SilentlyContinue).LastWriteTimeUtc
+            if ($script:browserListMtime -and $mt -gt $script:browserListMtime.AddSeconds(1) -and (Get-Process -Name "winws" -ErrorAction SilentlyContinue)) {
+                Log-Line "Browser list updated (FirefoxZapret) - restarting Zapret to apply" Cyan
+                Stop-Zapret
+                $file = $presetFiles | Where-Object { $_.Name -eq $script:currentPresetName } | Select-Object -First 1
+                if (-not $file -and $script:currentPresetName -eq $customPresetName -and $script:basePresetName) {
+                    try { $file = New-CustomConfig -basePresetName $script:basePresetName } catch { $file = $null }
+                }
+                if ($file -and (Start-Preset -file $file)) {
+                    Touch-SiteChecksAfterRestart -settleSeconds ([Math]::Max($siteSettle, $cooldownSeconds))
+                }
+            }
+            if ($mt) { $script:browserListMtime = $mt }
         }
 
         # per-site checks / fix cycles (restart winws on strategy changes)
